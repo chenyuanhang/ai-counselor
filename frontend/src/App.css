@@ -256,13 +256,20 @@ button {
 
 .user-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: flex-end;
   gap: 10px;
 }
 
+.user-bubble-stack {
+  max-width: min(72%, 560px);
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+}
+
 .user-bubble {
-  max-width: min(72%, 520px);
+  max-width: 100%;
   min-height: 46px;
   padding: 13px 14px;
   border-radius: 11px;
@@ -272,6 +279,12 @@ button {
   background: var(--bubble);
   font-size: 14px;
   line-height: 1.45;
+}
+
+.message-attachments {
+  width: min(100%, 460px);
+  display: grid;
+  gap: 8px;
 }
 
 .bot-avatar,
@@ -312,6 +325,11 @@ button {
   background: #ffffff;
 }
 
+.message-attachments .attachment-card {
+  min-height: 56px;
+  background: #fbfcff;
+}
+
 .file-badge {
   width: 40px;
   height: 40px;
@@ -340,6 +358,18 @@ button {
 
 .file-badge-zip span {
   background: #ffb83f;
+}
+
+.file-badge-docx span,
+.file-badge-xls span,
+.file-badge-xlsx span,
+.file-badge-csv span {
+  background: #3f6eea;
+}
+
+.file-badge-txt span,
+.file-badge-html span {
+  background: #2f8f6b;
 }
 
 .attachment-meta {
@@ -464,7 +494,9 @@ button {
   left: clamp(78px, 8vw, 150px);
   right: clamp(24px, 8vw, 150px);
   bottom: 25px;
-  height: 97px;
+  min-height: 97px;
+  max-height: 184px;
+  padding: 12px 74px 18px 18px;
   border-radius: 11px;
   background: #ffffff;
   border: 1px solid var(--border);
@@ -473,11 +505,97 @@ button {
 }
 
 .composer-placeholder {
-  position: absolute;
-  top: 14px;
-  left: 18px;
+  display: block;
+  height: 28px;
+  margin-top: 0;
   color: #c2c9d2;
   font-size: 14px;
+}
+
+.composer-files {
+  max-height: 86px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.composer-file-chip {
+  max-width: min(100%, 300px);
+  min-height: 44px;
+  padding: 6px 7px;
+  border: 1px solid #dfe5f0;
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 8px;
+  background: #f8fbff;
+}
+
+.composer-file-chip .file-badge {
+  width: 32px;
+  height: 32px;
+  flex-basis: 32px;
+}
+
+.composer-file-chip .file-badge span {
+  width: 16px;
+  height: 21px;
+  font-size: 5px;
+}
+
+.composer-file-meta {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.composer-file-meta strong,
+.composer-file-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.composer-file-meta strong {
+  color: #17233d;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.composer-file-meta span {
+  color: #7f8999;
+  font-size: 11px;
+}
+
+.composer-file-chip button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #7f8999;
+  background: transparent;
+  cursor: pointer;
+}
+
+.composer-file-chip button:hover {
+  background: #eef3ff;
+  color: #17233d;
+}
+
+.composer-file-uploading {
+  opacity: 0.72;
+}
+
+.file-input {
+  display: none;
 }
 
 .composer-tools {
@@ -554,6 +672,10 @@ button {
   }
 
   .user-bubble {
+    max-width: 78%;
+  }
+
+  .user-bubble-stack {
     max-width: 78%;
   }
 
@@ -673,8 +795,12 @@ button {
     gap: 8px;
   }
 
+  .user-bubble-stack {
+    max-width: calc(100% - 42px);
+  }
+
   .user-bubble {
-    max-width: calc(100% - 48px);
+    max-width: 100%;
     min-height: 40px;
     padding: 10px 12px;
     font-size: 13px;
@@ -724,12 +850,22 @@ button {
     left: 58px;
     right: 14px;
     bottom: 42px;
-    height: 78px;
+    min-height: 78px;
+    max-height: 168px;
+    padding: 10px 58px 12px 12px;
   }
 
   .composer-tools {
     right: 12px;
     bottom: 18px;
+  }
+
+  .composer-files {
+    max-height: 82px;
+  }
+
+  .composer-file-chip {
+    max-width: 100%;
   }
 
   .ai-note {

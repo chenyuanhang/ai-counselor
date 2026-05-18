@@ -193,13 +193,14 @@ function normalizeMessage(message) {
   const content = normalizeMessageContent(message)
   const streaming = Boolean(message?.streaming)
   const streamingEnd = message?.streamingEnd !== false
+  const attachments = parseAttachments(message?.attachments).map(normalizeChatFile).filter(Boolean)
 
   return {
     id: message?.id || createId('message'),
     role: message?.role === 'assistant' ? 'assistant' : 'user',
     text: content,
     content,
-    attachments: parseAttachments(message?.attachments),
+    attachments,
     status: streaming && !streamingEnd ? 'streaming' : 'done',
     createTime: message?.createTime ?? null,
   }
@@ -694,18 +695,24 @@ function ChatPage({
   onSendMessage,
   onStopMessage,
   onQuickPrompt,
+  onFileSelect,
+  onRemovePendingFile,
   onAttachmentDownload,
   downloadingFileId,
+  pendingFiles,
+  isUploadingFiles,
   isTyping,
   canvasRef,
   networkError,
 }) {
+  const fileInputRef = useRef(null)
   const handleKeyDown = (event) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault()
       onSendMessage()
     }
   }
+  const hasUploadingFile = pendingFiles.some((file) => file.status === 'uploading')
 
   return (
     <main className="chat-shell">
@@ -737,7 +744,21 @@ function ChatPage({
           if (message.role === 'user') {
             return (
               <div className="user-row" key={message.id}>
-                <div className="user-bubble">{message.text}</div>
+                <div className="user-bubble-stack">
+                  {message.attachments?.length ? (
+                    <div className="message-attachments">
+                      {message.attachments.map((file) => (
+                        <AttachmentCard
+                          file={normalizeChatFile(file)}
+                          key={file.id || file.name}
+                          onDownload={() => onAttachmentDownload(file)}
+                          isDownloading={downloadingFileId === file.name}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="user-bubble">{message.text}</div>
+                </div>
                 <img src={botAvatar} alt="" className="bot-avatar" />
               </div>
             )
@@ -788,17 +809,40 @@ function ChatPage({
       </button>
 
       <div className="composer">
+        {pendingFiles.length ? (
+          <div className="composer-files" aria-label="待发送附件">
+            {pendingFiles.map((file) => (
+              <ComposerFileChip file={file} key={file.id} onRemove={onRemovePendingFile} />
+            ))}
+          </div>
+        ) : null}
         <input
           className="composer-placeholder composer-input"
           type="text"
           value={draft}
-          placeholder={isTyping ? '正在输入...' : '请输入'}
+          placeholder={isTyping ? '正在输入...' : pendingFiles.length ? '请输入关于文件的问题' : '请输入'}
           onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isTyping}
         />
         <div className="composer-tools">
-          <button aria-label="添加附件" type="button" disabled={isTyping}>
+          <input
+            ref={fileInputRef}
+            className="file-input"
+            type="file"
+            multiple
+            accept=".docx,.xls,.xlsx,.csv,.pdf,.txt,.zip,.html"
+            onChange={(event) => {
+              onFileSelect(event.target.files)
+              event.target.value = ''
+            }}
+          />
+          <button
+            aria-label="添加附件"
+            type="button"
+            disabled={isTyping || isUploadingFiles}
+            onClick={() => fileInputRef.current?.click()}
+          >
             <Icon name="attach" />
           </button>
           <button
@@ -806,13 +850,14 @@ function ChatPage({
             aria-label={isTyping ? '停止生成' : '发送'}
             type="button"
             onClick={isTyping ? onStopMessage : onSendMessage}
+            disabled={!isTyping && (isUploadingFiles || hasUploadingFile)}
           >
             <Icon name="send" />
           </button>
         </div>
       </div>
 
-      <div className="ai-note">{isTyping ? '正在输入...' : '内容由AI生成，仅供参考'}</div>
+      <div className="ai-note">{isTyping ? '正在输入...' : isUploadingFiles ? '正在解析附件...' : '内容由AI生成，仅供参考'}</div>
     </main>
   )
 }
@@ -872,6 +917,37 @@ async function apiFetchSse(url, options = {}, token = null) {
   return response
 }
 
+async function apiUploadFiles(files, token) {
+  const formData = new FormData()
+  files.forEach((file) => formData.append('files', file))
+
+  const response = await fetch(`${API_BASE_URL}/chat/files`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  if (response.status === 401) {
+    throw new AuthExpiredError()
+  }
+
+  const text = await response.text()
+  let data = null
+  try {
+    data = JSON.parse(text)
+  } catch {
+    data = { code: response.status, message: text }
+  }
+
+  if (!response.ok || !isApiPayloadOk(data)) {
+    throw new Error(getApiMessage(data, `文件上传失败：${response.status}`))
+  }
+
+  return (unwrapApiData(data) || []).map(normalizeChatFile).filter(Boolean)
+}
+
 export default function App() {
   const [user, setUser] = useState(() => {
     try {
@@ -894,6 +970,8 @@ export default function App() {
   const [authError, setAuthError] = useState('')
   const [renameModalOpen, setRenameModalOpen] = useState(false)
   const [renameTitle, setRenameTitle] = useState('')
+  const [pendingFiles, setPendingFiles] = useState([])
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false)
 
   const chatCanvasRef = useRef(null)
   const downloadTimerRef = useRef(null)
@@ -958,6 +1036,8 @@ export default function App() {
     setSessions([])
     setActiveSessionId(null)
     setDraft('')
+    setPendingFiles([])
+    setIsUploadingFiles(false)
     setIsTyping(false)
     if (message) {
       setAuthError(message)
@@ -1173,6 +1253,7 @@ export default function App() {
     abortActiveRequest()
     setIsTyping(false)
     setDraft('')
+    setPendingFiles([])
     setNetworkError('')
 
     if (!token) {
@@ -1207,6 +1288,7 @@ export default function App() {
     abortActiveRequest()
     setIsTyping(false)
     setDraft('')
+    setPendingFiles([])
     setNetworkError('')
     setActiveSessionId(sessionId)
 
@@ -1313,6 +1395,54 @@ export default function App() {
     }, 900)
   }
 
+  const handleFileSelect = async (fileList) => {
+    const files = Array.from(fileList || [])
+    const validationError = validateSelectedFiles(files, pendingFiles)
+    if (validationError) {
+      setNetworkError(validationError)
+      return
+    }
+    if (!files.length) {
+      return
+    }
+    if (!token) {
+      clearAuthState('未登录，请先登录')
+      return
+    }
+
+    const placeholders = files.map((file) => ({
+      id: createId('uploading-file'),
+      name: file.name,
+      type: getFileType(file.name),
+      size: formatFileSize(file.size),
+      rawSize: file.size,
+      status: 'uploading',
+    }))
+
+    setPendingFiles((current) => [...current, ...placeholders])
+    setIsUploadingFiles(true)
+    setNetworkError('')
+
+    try {
+      const uploadedFiles = await apiUploadFiles(files, token)
+      setPendingFiles((current) => [
+        ...current.filter((file) => !placeholders.some((placeholder) => placeholder.id === file.id)),
+        ...uploadedFiles,
+      ])
+    } catch (error) {
+      setPendingFiles((current) => current.filter((file) => !placeholders.some((placeholder) => placeholder.id === file.id)))
+      if (!handleAuthFailure(error)) {
+        setNetworkError(handleFetchFailure(error))
+      }
+    } finally {
+      setIsUploadingFiles(false)
+    }
+  }
+
+  const handleRemovePendingFile = (fileId) => {
+    setPendingFiles((current) => current.filter((file) => file.id !== fileId))
+  }
+
   const updateAssistantStream = (sessionId, assistantId, content, status) => {
     updateSessionMessage(sessionId, assistantId, (message) => ({
       ...message,
@@ -1338,7 +1468,11 @@ export default function App() {
 
   const handleSendMessage = async (overrideText) => {
     const text = (overrideText ?? draft).trim()
-    if (!text || isTyping) {
+    if ((!text && pendingFiles.length === 0) || isTyping) {
+      return
+    }
+    if (isUploadingFiles || pendingFiles.some((file) => file.status === 'uploading')) {
+      setNetworkError('附件还在解析中，请稍后发送')
       return
     }
 
@@ -1349,6 +1483,8 @@ export default function App() {
 
     abortActiveRequest()
     setNetworkError('')
+    const filesForMessage = pendingFiles.map(normalizeChatFile).filter(Boolean)
+    const userContent = text || '请总结附件内容'
 
     let sessionId = activeSessionId
     let session = activeSession
@@ -1357,7 +1493,7 @@ export default function App() {
       try {
         const res = await apiFetch('/conversations', {
           method: 'POST',
-          body: JSON.stringify({ title: text.slice(0, 16) || '新会话' }),
+          body: JSON.stringify({ title: userContent.slice(0, 16) || '新会话' }),
         }, token)
         const newSession = normalizeConversation(unwrapApiData(res.data))
         if (!newSession) {
@@ -1379,8 +1515,9 @@ export default function App() {
     const userMessage = {
       id: createId('user'),
       role: 'user',
-      text,
-      content: text,
+      text: userContent,
+      content: userContent,
+      attachments: filesForMessage,
     }
     const assistantId = createId('assistant')
     const assistantPlaceholder = {
@@ -1393,13 +1530,14 @@ export default function App() {
 
     updateSession(sessionId, (s) => ({
       ...s,
-      title: (s.title === '新会话' || !s.title) ? text.slice(0, 16) || '新会话' : s.title,
+      title: (s.title === '新会话' || !s.title) ? userContent.slice(0, 16) || '新会话' : s.title,
       pending: false,
       messagesLoaded: true,
       messages: [...s.messages, userMessage, assistantPlaceholder],
     }))
 
     setDraft('')
+    setPendingFiles([])
     setIsTyping(true)
 
     const controller = new AbortController()
@@ -1413,8 +1551,9 @@ export default function App() {
     const requestMessages = toRequestMessages(sessionMessages, userMessage)
     const requestBody = {
       conversationId: sessionId,
-      content: text,
+      content: userContent,
       messages: requestMessages,
+      fileIds: filesForMessage.map((file) => file.id).filter(Boolean),
       agentId: AGENT_ID,
     }
 
@@ -1545,8 +1684,12 @@ export default function App() {
         onSendMessage={handleSendMessage}
         onStopMessage={handleStopMessage}
         onQuickPrompt={handleQuickPrompt}
+        onFileSelect={handleFileSelect}
+        onRemovePendingFile={handleRemovePendingFile}
         onAttachmentDownload={handleAttachmentDownload}
         downloadingFileId={downloadingFileId}
+        pendingFiles={pendingFiles}
+        isUploadingFiles={isUploadingFiles}
         isTyping={isTyping}
         canvasRef={chatCanvasRef}
         networkError={networkError}
