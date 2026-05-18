@@ -1,0 +1,37 @@
+server:
+  port: ${SERVER_PORT:8443}
+  ssl:
+    enabled: ${SSL_ENABLED:true}
+    clientAuth: NEED
+    key-store: ${SSL_KEYSTORE_FILE:file:/certs/server/server.keystore}
+    key-store-password: ${SSL_KEYSTORE_PASSWORD:}
+    trust-store: ${SSL_TRUSTSTORE_FILE:file:/certs/server/server.truststore}
+    trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:}
+  tomcat: 
+    accesslog: 
+      enabled: ${TOMCAT_ACCESSLOG_ENABLED:false}
+      buffered: ${TOMCAT_ACCESSLOG_BUFFERED:true}
+      directory: ${TOMCAT_ACCESSLOG_DIR:log}
+      prefix: ${TOMCAT_ACCESSLOG_PREFIX:sa-api-accesslog}
+      suffix: ${TOMCAT_ACCESSLOG_SUFFIX:.log}
+      file-date-format: ${TOMCAT_ACCESSLOG_FILE_DATE_FORMAT:.yyyy-MM-dd}
+      rotate: ${TOMCAT_ACCESSLOG_ROTATE:true}
+
+
+## logging
+logging:
+  file: ${LOGGING_FILE:/home/java-app/logs/app.log}
+  level:
+    root: INFO
+    com.supwisdom.institute.authx.demo.cas: INFO
+    # LOGGING_LEVEL_COM_SUPWISDOM_INSTITUTE_AUTHX_DEMO_CAS: DEBUG
+
+
+## CAS
+
+#应用地址
+app.server.url: ${APP_SERVER_URL:https://authx-demo-cas}
+
+#CAS服务地址
+cas.server.url: ${CAS_SERVER_URL:https://cas-server/cas}
+

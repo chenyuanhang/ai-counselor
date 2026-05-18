@@ -1,0 +1,13 @@
+node_modules/
+dist/
+target/
+
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+
+backend/target/
+
+.env
+*.local
+*.log

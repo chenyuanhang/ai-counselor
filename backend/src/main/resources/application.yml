@@ -1,0 +1,44 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: ai-counselor-backend
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ai_counselor?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: assign_id
+
+app:
+  frontend-url: ${FRONTEND_URL:/counselor/}
+  jwt:
+    secret: ${JWT_SECRET:change-this-secret-to-at-least-32-bytes}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  agent:
+    base-url: ${AGENT_BASE_URL:http://10.66.6.226:9022/af-api}
+    agent-id: ${AGENT_ID:2036332866958286848}
+    timeout-seconds: ${AGENT_TIMEOUT_SECONDS:300}
+  portal:
+    # 郑大 AuthX CAS 地址示例：https://authx-service.s.zzu.edu.cn/cas
+    # 配置该项后，/auth/login 会按 CAS 协议跳转；不配置时保留原 OAuth2/OIDC 配置能力。
+    cas-base-url: ${PORTAL_CAS_BASE_URL:}
+    login-type: ${PORTAL_LOGIN_TYPE:}
+    authorization-uri: ${PORTAL_AUTHORIZATION_URI:}
+    token-uri: ${PORTAL_TOKEN_URI:}
+    userinfo-uri: ${PORTAL_USERINFO_URI:}
+    client-id: ${PORTAL_CLIENT_ID:}
+    client-secret: ${PORTAL_CLIENT_SECRET:}
+    redirect-uri: ${PORTAL_REDIRECT_URI:http://localhost:8080/auth/callback}
+    scope: ${PORTAL_SCOPE:openid profile email}
+
+logging:
+  level:
+    com.hfut.counselor: INFO
