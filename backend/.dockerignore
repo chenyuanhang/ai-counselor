@@ -1,0 +1,7 @@
+target/*
+!target/ai-counselor-backend-1.0.0.jar
+.idea
+.git
+*.log
+README.md
+文档

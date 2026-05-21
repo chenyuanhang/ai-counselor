@@ -14,12 +14,15 @@ Java 8 compatible Spring Boot backend for the counselor frontend.
 ## What It Provides
 
 - `POST /auth/dev-login`: local development login.
-- `GET /auth/login`: redirects to the school portal OIDC login URL.
-- `GET /auth/callback`: OIDC callback, redirects to frontend with `token` and `user`.
+- `GET /auth/login`: redirects to the school AuthX/CAS login URL when `app.portal.cas-base-url` is configured.
+- `GET /auth/callback`: CAS callback, validates `ticket` with `/serviceValidate`, then redirects to frontend with `token` and `user`.
+- `GET /auth/logout`: clears the frontend token and redirects through the school AuthX/CAS logout URL.
+- `GET /auth/slo`: JSONP-compatible single logout endpoint for the AuthX application configuration.
 - `GET /api/user/me`: current user.
 - `POST /api/conversations`: create conversation.
 - `GET /api/conversations`: list current user's conversations.
 - `GET /api/messages?conversationId=...`: list current user's messages in a conversation.
+- `POST /api/chat/files`: upload and extract up to 10 files for the next chat round. Multipart field: `files`.
 - `POST /api/chat/stream`: proxy upstream AI SSE and save both user and assistant messages.
 
 ## Initialize Database
@@ -34,22 +37,78 @@ mysql -u root -p < src/main/resources/schema.sql
 mvn clean package -DskipTests
 ```
 
-## Run
+The Docker image expects this jar to exist:
 
-```bash
-java -jar target/ai-counselor-backend-1.0.0.jar
+```text
+target/ai-counselor-backend-1.0.0.jar
 ```
 
-Production examples:
+## Profiles
+
+Configuration files:
+
+```text
+src/main/resources/application.yml
+src/main/resources/application-local.yml
+src/main/resources/application-online.yml
+```
+
+`application-local.yml` and `application-online.yml` are intentionally not tracked because they contain machine-specific or production configuration. Create them from your deployment environment and provide these values:
+
+- `spring.datasource.url`
+- `spring.datasource.username`
+- `spring.datasource.password`
+- `app.jwt.secret`
+- `app.agent.base-url`
+- `app.agent.agent-id`
+- `app.portal.app-id`
+- `app.portal.cas-base-url`, or OAuth2/OIDC fields
+- `app.portal.redirect-uri`
+
+## Run Local
 
 ```bash
-export DB_URL='jdbc:mysql://127.0.0.1:3306/ai_counselor?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true'
-export DB_USERNAME='root'
-export DB_PASSWORD='your_password'
-export JWT_SECRET='replace-with-a-long-random-secret-at-least-32-bytes'
-export AGENT_BASE_URL='http://10.66.6.226:9022/af-api'
-export AGENT_ID='2036332866958286848'
-java -jar target/ai-counselor-backend-1.0.0.jar
+java -jar target/ai-counselor-backend-1.0.0.jar --spring.profiles.active=local
+```
+
+## Docker
+
+Build the jar first:
+
+```bash
+mvn clean package -DskipTests
+```
+
+Build the image:
+
+```bash
+docker build -t ai-counselor-backend:1.0.0 .
+```
+
+Run with environment-specific configuration mounted or supplied through environment variables:
+
+```bash
+docker run -d \
+  --name ai-counselor-backend \
+  --restart always \
+  -p 8080:8080 \
+  -e SPRING_PROFILES_ACTIVE=local \
+  -e TZ=Asia/Shanghai \
+  ai-counselor-backend:1.0.0
+```
+
+If you use Docker Compose in production, keep the compose file local because it usually contains server-specific settings.
+
+Check logs:
+
+```bash
+docker logs -f ai-counselor-backend
+```
+
+Check health:
+
+```bash
+curl -i http://127.0.0.1:8080/health
 ```
 
 ## Frontend Proxy

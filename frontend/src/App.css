@@ -167,8 +167,10 @@ button {
 }
 
 .history-item span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .history-bubble-icon {

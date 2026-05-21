@@ -3,6 +3,7 @@ package com.hfut.counselor.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hfut.counselor.dto.ChatRequest;
+import com.hfut.counselor.entity.Conversation;
 import com.hfut.counselor.entity.Message;
 import com.hfut.counselor.service.ChatFileService.ChatFileRecord;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,8 @@ public class ChatService {
     private long timeoutSeconds;
 
     public SseEmitter stream(String userId, ChatRequest request) {
-        conversationService.requireOwned(request.getConversationId(), userId);
+        Conversation conversation = conversationService.requireOwned(request.getConversationId(), userId);
+        conversationService.applyFirstMessageTitle(conversation, request.getContent());
         List<ChatFileRecord> files = chatFileService.requireOwnedFiles(userId, request.getFileIds());
         String attachmentJson = chatFileService.toAttachmentJson(files);
         Message userMessage = messageService.saveMessage(request.getConversationId(), "user", request.getContent(),

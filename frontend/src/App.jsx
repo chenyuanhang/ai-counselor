@@ -211,9 +211,11 @@ function normalizeConversation(conversation, existingSession) {
     return null
   }
 
+  const title = String(conversation.title || '').trim() || '新会话'
+
   return {
     id: conversation.id,
-    title: conversation.title || '新会话',
+    title,
     messages: existingSession?.messages || [],
     messagesLoaded: existingSession?.messagesLoaded || false,
     pending: false,
@@ -666,6 +668,7 @@ function Sidebar({
                 onSelectSession(item.id)
               }
             }}
+            title={item.title || '新会话'}
           >
             <HistoryBubbleIcon />
             <span>{item.title}</span>
@@ -749,7 +752,7 @@ function ChatPage({
                     <div className="message-attachments">
                       {message.attachments.map((file) => (
                         <AttachmentCard
-                          file={normalizeChatFile(file)}
+                          file={file}
                           key={file.id || file.name}
                           onDownload={() => onAttachmentDownload(file)}
                           isDownloading={downloadingFileId === file.name}
@@ -1264,7 +1267,7 @@ export default function App() {
     try {
       const res = await apiFetch('/conversations', {
         method: 'POST',
-        body: JSON.stringify({ title: '新会话' }),
+        body: JSON.stringify({}),
       }, token)
       const newSession = normalizeConversation(unwrapApiData(res.data))
       if (!newSession) {
@@ -1493,7 +1496,7 @@ export default function App() {
       try {
         const res = await apiFetch('/conversations', {
           method: 'POST',
-          body: JSON.stringify({ title: userContent.slice(0, 16) || '新会话' }),
+          body: JSON.stringify({ title: userContent }),
         }, token)
         const newSession = normalizeConversation(unwrapApiData(res.data))
         if (!newSession) {
@@ -1530,7 +1533,6 @@ export default function App() {
 
     updateSession(sessionId, (s) => ({
       ...s,
-      title: (s.title === '新会话' || !s.title) ? userContent.slice(0, 16) || '新会话' : s.title,
       pending: false,
       messagesLoaded: true,
       messages: [...s.messages, userMessage, assistantPlaceholder],

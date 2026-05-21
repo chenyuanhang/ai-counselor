@@ -15,10 +15,13 @@ import java.util.stream.Collectors;
 
 @Service
 public class ConversationService extends ServiceImpl<ConversationMapper, Conversation> {
+    private static final String DEFAULT_TITLE = "新会话";
+    private static final int MAX_TITLE_CODE_POINTS = 18;
+
     public ConversationDto create(String userId, String title) {
         Conversation conversation = new Conversation();
         conversation.setUserId(userId);
-        conversation.setTitle(StringUtils.hasText(title) ? title : "新会话");
+        conversation.setTitle(buildTitle(title));
         conversation.setMessageCount(0);
         conversation.setArchived(false);
         conversation.setLastMessageTime(LocalDateTime.now());
@@ -53,7 +56,7 @@ public class ConversationService extends ServiceImpl<ConversationMapper, Convers
 
     public ConversationDto rename(String id, String userId, String title) {
         Conversation conversation = requireOwned(id, userId);
-        conversation.setTitle(StringUtils.hasText(title) ? title : conversation.getTitle());
+        conversation.setTitle(StringUtils.hasText(title) ? buildTitle(title) : conversation.getTitle());
         conversation.setUpdateTime(LocalDateTime.now());
         updateById(conversation);
         return ConversationDto.from(conversation);
@@ -74,5 +77,37 @@ public class ConversationService extends ServiceImpl<ConversationMapper, Convers
             conversation.setUpdateTime(LocalDateTime.now());
             updateById(conversation);
         }
+    }
+
+    public void applyFirstMessageTitle(Conversation conversation, String content) {
+        if (conversation == null) {
+            return;
+        }
+        int messageCount = conversation.getMessageCount() == null ? 0 : conversation.getMessageCount();
+        if (messageCount > 0 || !DEFAULT_TITLE.equals(conversation.getTitle())) {
+            return;
+        }
+        conversation.setTitle(buildTitle(content));
+        conversation.setUpdateTime(LocalDateTime.now());
+        updateById(conversation);
+    }
+
+    private String buildTitle(String seed) {
+        if (!StringUtils.hasText(seed)) {
+            return DEFAULT_TITLE;
+        }
+        String title = seed
+                .replaceAll("[\\r\\n\\t]+", " ")
+                .replaceAll("\\s+", " ")
+                .replaceAll("^[\\p{Punct}，。！？、；：“”‘’（）【】《》]+", "")
+                .trim();
+        if (!StringUtils.hasText(title)) {
+            return DEFAULT_TITLE;
+        }
+        if (title.codePointCount(0, title.length()) <= MAX_TITLE_CODE_POINTS) {
+            return title;
+        }
+        int end = title.offsetByCodePoints(0, MAX_TITLE_CODE_POINTS);
+        return title.substring(0, end) + "...";
     }
 }

@@ -49,6 +49,8 @@ public class AuthService {
     private String casBaseUrl;
     @Value("${app.portal.login-type:}")
     private String loginType;
+    @Value("${app.portal.app-id:}")
+    private String portalAppId;
     @Value("${app.portal.token-uri:}")
     private String tokenUri;
     @Value("${app.portal.userinfo-uri:}")

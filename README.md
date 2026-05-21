@@ -39,6 +39,12 @@ mysql -u root -p < src/main/resources/schema.sql
 
 The backend reads database, JWT, upstream AI service, and portal login settings from environment variables. See `backend/README.md` for the main configuration examples.
 
+Existing databases created before file attachments need one extra column:
+
+```sql
+ALTER TABLE counselor_message ADD COLUMN attachments TEXT NULL AFTER content;
+```
+
 ## Deployment Prefix
 
 The frontend is configured for the `/counselor/` base path. The default frontend API prefixes are:

@@ -11,3 +11,25 @@ backend/target/
 .env
 *.local
 *.log
+
+.idea/
+backend/.idea/
+
+# Local and production-only configuration
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-online.yml
+backend/docker-compose.online.yml
+
+# Deployment docs and reference vendor docs are kept local.
+*部署*.md
+backend/文档/
+
+# Build and delivery archives
+*.jar
+*.war
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
